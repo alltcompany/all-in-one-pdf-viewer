@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ALLT Book Studio</title>
+  <style>
+    html,body{height:100%;margin:0;background:#15161a;color:#fff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    .loading{height:100%;display:grid;place-items:center;text-align:center}
+    .card{padding:28px 34px;border:1px solid #303137;border-radius:16px;background:#202126;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+    .spinner{width:38px;height:38px;margin:0 auto 16px;border:4px solid #3b3d45;border-top-color:#f47a21;border-radius:50%;animation:spin .8s linear infinite}
+    h1{margin:0;font-size:17px}p{margin:8px 0 0;color:#a8abb4;font-size:12px}@keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <div class="loading"><div class="card"><div class="spinner"></div><h1>ALLT Book Studio</h1><p>편집기를 불러오는 중입니다.</p></div></div>
+  <script>
+  (async()=>{
+    try{
+      const files=["payload-01.txt", "payload-02.txt", "payload-03.txt", "payload-04.txt", "payload-05.txt", "payload-06.txt", "payload-07.txt"];
+      const parts=await Promise.all(files.map(async file=>{
+        const res=await fetch(file,{cache:'no-store'});
+        if(!res.ok) throw new Error(file+' '+res.status);
+        return res.text();
+      }));
+      const b64=parts.join('').replace(/\s+/g,'');
+      const binary=atob(b64);
+      const bytes=new Uint8Array(binary.length);
+      for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+      let html;
+      if('DecompressionStream' in window){
+        const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+        html=await new Response(stream).text();
+      }else{
+        const script=document.createElement('script');
+        script.src='https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js';
+        await new Promise((resolve,reject)=>{script.onload=resolve;script.onerror=reject;document.head.appendChild(script)});
+        html=new TextDecoder().decode(window.pako.ungzip(bytes));
+      }
+      document.open();document.write(html);document.close();
+    }catch(error){
+      document.body.innerHTML='<div class="loading"><div class="card"><h1>불러오지 못했습니다.</h1><p>'+String(error.message||error)+'</p></div></div>';
+      console.error(error);
+    }
+  })();
+  </script>
+</body>
+</html>
